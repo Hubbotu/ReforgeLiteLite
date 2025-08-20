@@ -89,7 +89,7 @@ addonTable.StatCapMethods = {
 }
 
 function ReforgeLite:UpgradeDB()
-  local db = ReforgeLiteDB
+  local db = ReforgeLiteLiteDB
   if not db then return end
   if db.classProfiles then
     db.class = DeepCopy(db.classProfiles)
