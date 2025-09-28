@@ -257,6 +257,7 @@ end
 function ReforgeLite:InitializeMethod()
   local method = { items = {} }
   local orgitems = {}
+  local statsSum = 0
   for k, v in ipairs(self.itemData) do
     method.items[k] = { stats = {} }
     orgitems[k] = {}
@@ -266,13 +267,14 @@ function ReforgeLite:InitializeMethod()
     for j, stat in ipairs(addonTable.itemStats) do
       method.items[k].stats[j] = (stats[stat.name] or 0)
       orgitems[k][j] = (orgstats[stat.name] or 0)
+      statsSum = statsSum + method.items[k].stats[j]
     end
   end
-  return method, orgitems
+  return method, orgitems, statsSum
 end
 
 function ReforgeLite:InitReforgeClassic()
-  local method, orgitems = self:InitializeMethod()
+  local method, orgitems, statsSum = self:InitializeMethod()
   local data = {}
   data.method = method
   data.weights = CopyTable (self.pdb.weights)
@@ -294,6 +296,11 @@ function ReforgeLite:InitReforgeClassic()
         data.caps[i].points[point].value = floor(self.capPresets[preset].getter())
       end
     end
+  end
+
+  data.cheat = math.ceil(statsSum / 1000)
+  if data.cheat < 1 then
+    data.cheat = 1
   end
 
   for i = 1, addonTable.itemStatCount do
@@ -357,20 +364,29 @@ function ReforgeLite:InitReforgeClassic()
   return data
 end
 
-function ReforgeLite:ComputeReforgeCore(reforgeOptions)
-  local char, floor = string.char, floor
-  local scores, codes = {0}, {""}
-  for i, opt in ipairs(reforgeOptions) do
+function ReforgeLite:ComputeReforgeCore (data, reforgeOptions)
+  local scores, codes = {}, {}
+  local mfloor = math.floor
+  local mrandom = math.random
+  local schar = string.char
+  local linit = mfloor(data.caps[1].init / data.cheat + mrandom()) + mfloor(data.caps[2].init / data.cheat + mrandom()) * TABLE_SIZE
+  scores[linit] = 0
+  codes[linit] = ""
+  for i = 1, #self.itemData do
     local newscores, newcodes = {}, {}
+    local opt = reforgeOptions[i]
+    local count = 0
     for k, score in pairs(scores) do
-      self:RunYieldCheck(200000)
-      local s1, s2 = k % self.TABLE_SIZE, floor(k / self.TABLE_SIZE)
+      local code = codes[k]
+      local s1 = k % TABLE_SIZE
+      local s2 = mfloor(k / TABLE_SIZE)
       for j = 1, #opt do
-        local nscore = score + opt[j].score
-        local nk = s1 + opt[j].d1 + (s2 + opt[j].d2) * self.TABLE_SIZE
-        if not newscores[nk] or nscore > newscores[nk] then
+        local o = opt[j]
+        local nscore = score + o.score
+        local nk = s1 + mfloor(o.d1 / data.cheat + mrandom()) + (s2 + mfloor(o.d2 / data.cheat + mrandom())) * TABLE_SIZE
+        if newscores[nk] == nil or nscore > newscores[nk] then
           newscores[nk] = nscore
-          newcodes[nk] = codes[k] .. char(j)
+          newcodes[nk] = code .. schar(j)
         end
       end
     end
@@ -423,7 +439,7 @@ function ReforgeLite:ComputeReforge()
 
   chooseLoops = 0
 
-  local scores, codes = self:ComputeReforgeCore(reforgeOptions)
+  local scores, codes = self:ComputeReforgeCore(data, reforgeOptions)
 
   chooseLoops = 0
 
