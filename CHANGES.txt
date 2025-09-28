@@ -1,22 +1,30 @@
-tag b261fa3f8770a360f47d747c1ff50624b23776c2 v2.1.0
+tag 231ad8742452396c212423e4ab6be140ed926442 v2.1.8
 Author:	skyler-code <skylerh15@github.com>
-Date:	Fri Aug 15 20:48:47 2025 -0500
+Date:	Fri Sep 26 04:43:34 2025 -0500
 
-commit 00180bc1d295debcdb577bbfae7e278f748ba095
+commit e43b50572df4f9071be8d346ae868e828690ab44
 Author: skyler-code <skylerh15@github.com>
-Date:   Fri Aug 15 20:37:37 2025 -0500
+Date:   Fri Sep 26 04:43:03 2025 -0500
 
-    properly attach to ReforgingFrame
+    need to do playerrace check last
 
-commit 7d1267d4d472d95dc5b6887b97b31f3e843da979
+commit 9086eb884207420a8d8ea077e336d5746642e454
 Author: skyler-code <skylerh15@github.com>
-Date:   Fri Aug 15 20:35:17 2025 -0500
+Date:   Fri Sep 26 04:39:45 2025 -0500
 
-    move methodwindow to reforgingframe when using import btn
+    conversion cleanup
 
-commit 211a9ea93dce32f63370920eb08ac92bd65be72a
+commit b301746030ecc6e8ac54ee045559602895f05607
 Author: skyler-code <skylerh15@github.com>
-Date:   Fri Aug 15 20:17:55 2025 -0500
+Date:   Fri Sep 26 03:52:37 2025 -0500
 
-    adjust import button padding
+    Factor in 50% additional haste for mistweavers
+    
+    closes #49
+
+commit 8ea4a5ef1343de88bddda2fe9e851fe3c47c4ee3
+Author: skyler-code <skylerh15@github.com>
+Date:   Fri Sep 26 03:51:56 2025 -0500
+
+    EnumUtil
 

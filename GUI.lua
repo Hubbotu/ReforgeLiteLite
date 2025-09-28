@@ -1,7 +1,19 @@
 local addonName, addonTable = ...
 local GUI = {}
+addonTable.GUI = GUI
 
 local LibDD = LibStub:GetLibrary("LibUIDropDownMenu-4.0")
+
+addonTable.FONTS = {
+  grey = INACTIVE_COLOR,
+  lightgrey = TUTORIAL_FONT_COLOR,
+  white = WHITE_FONT_COLOR,
+  green = CreateColor(0.6, 1, 0.6),
+  red = CreateColor(1, 0.4, 0.4),
+  panel = PANEL_BACKGROUND_COLOR,
+  gold = GOLD_FONT_COLOR,
+  darkyellow = DARKYELLOW_FONT_COLOR
+}
 
 GUI.widgetCount = 0
 function GUI:GenerateWidgetName ()
@@ -25,7 +37,7 @@ end
 function GUI:Lock()
   for _, frames in ipairs({self.panelButtons, self.imgButtons, self.editBoxes, self.checkButtons}) do
     for _, frame in pairs(frames) do
-      if frame:IsEnabled() then
+      if frame:IsEnabled() and not frame.preventLock then
         frame.locked = true
         frame:Disable()
         if frame:IsMouseEnabled() then
@@ -37,7 +49,7 @@ function GUI:Lock()
         end
         if frame.SetTextColor then
           frame.prevColor = {frame:GetTextColor()}
-          frame:SetTextColor (0.5, 0.5, 0.5)
+          frame:SetTextColor(addonTable.FONTS.grey:GetRGB())
         end
       end
     end
@@ -50,24 +62,28 @@ function GUI:Lock()
   end
 end
 
+function GUI:UnlockFrame(frame)
+  if frame.locked then
+    frame:Enable()
+    frame.locked = nil
+    if frame.mouseDisabled then
+      frame:EnableMouse(true)
+      frame.mouseDisabled = nil
+    elseif frame.mouseMotionDisabled then
+      frame:SetMouseMotionEnabled(true)
+      frame.mouseMotionDisabled = nil
+    end
+    if frame.prevColor then
+      frame:SetTextColor(unpack(frame.prevColor))
+      frame.prevColor = nil
+    end
+  end
+end
+
 function GUI:Unlock()
   for _, frames in ipairs({self.panelButtons, self.imgButtons, self.editBoxes, self.checkButtons}) do
     for _, frame in pairs(frames) do
-      if frame.locked then
-        frame:Enable()
-        frame.locked = nil
-        if frame.mouseDisabled then
-          frame:EnableMouse(true)
-          frame.mouseDisabled = nil
-        elseif frame.mouseMotionDisabled then
-          frame:SetMouseMotionEnabled(true)
-          frame.mouseMotionDisabled = nil
-        end
-        if frame.prevColor then
-          frame:SetTextColor (unpack(frame.prevColor))
-          frame.prevColor = nil
-        end
-      end
+      self:UnlockFrame(frame)
     end
   end
   for _, dropdown in pairs(self.dropdowns) do
@@ -84,7 +100,7 @@ function GUI:SetTooltip (widget, tip)
       local tooltipFunc = "AddLine"
       local tipText
       if type(tip) == "function" then
-        tipText = tip()
+        tipText = tip(tipFrame)
       else
         tipText = tip
       end
@@ -112,17 +128,18 @@ GUI.unusedEditBoxes = {}
 function GUI:CreateEditBox (parent, width, height, default, setter)
   local box
   if #self.unusedEditBoxes > 0 then
-    box = tremove (self.unusedEditBoxes)
-    box:SetParent (parent)
-    box:Show ()
-    box:SetTextColor (1, 1, 1)
-    box:EnableMouse (true)
+    box = tremove(self.unusedEditBoxes)
+    box:SetParent(parent)
+    box:Show()
+    box:SetTextColor(addonTable.FONTS.white:GetRGB())
+    box:EnableMouse(true)
     self.editBoxes[box:GetName()] = box
   else
     box = CreateFrame ("EditBox", self:GenerateWidgetName (), parent, "InputBoxTemplate")
     self.editBoxes[box:GetName()] = box
     box:SetAutoFocus (false)
-    box:SetFontObject (ChatFontNormal)
+    box:SetFontObject(ChatFontNormal)
+    box:SetTextColor(addonTable.FONTS.white:GetRGB())
     box:SetNumeric ()
     box:SetTextInsets (0, 0, 3, 3)
     box:SetMaxLetters (8)
@@ -220,6 +237,7 @@ function GUI:CreateDropdown (parent, values, options)
     sel.Middle:SetHeight(50)
     sel.Right:SetHeight(50)
     sel.Text:SetPoint ("LEFT", sel.Left, "LEFT", 27, 1)
+    sel.Text:SetTextColor(addonTable.FONTS.white:GetRGB())
     sel.Button:SetSize(22, 22)
     sel.Button:SetPoint ("TOPRIGHT", sel.Right, "TOPRIGHT", -16, -13)
     sel.Recycle = function (frame)
@@ -316,12 +334,13 @@ end
 
 GUI.panelButtons = {}
 GUI.unusedPanelButtons = {}
-function GUI:CreatePanelButton(parent, text, handler)
+function GUI:CreatePanelButton(parent, text, handler, opts)
   local btn
   if #self.unusedPanelButtons > 0 then
     btn = tremove(self.unusedPanelButtons)
     btn:SetParent(parent)
     btn:Show()
+    btn:Enable()
     self.panelButtons[btn:GetName()] = btn
   else
     local name = self:GenerateWidgetName ()
@@ -341,7 +360,10 @@ function GUI:CreatePanelButton(parent, text, handler)
       f:SetText(...)
       f:FitToText()
     end
+    btn.originalFitTextWidthPadding = btn.fitTextWidthPadding
   end
+  btn.fitTextWidthPadding = (opts or {}).fitTextWidthPadding or btn.originalFitTextWidthPadding
+  btn.preventLock = (opts or {}).preventLock
   btn:RenderText(text)
   btn:SetScript("OnClick", handler)
   return btn
@@ -357,7 +379,8 @@ function GUI:CreateColorPicker (parent, width, height, color, handler)
   box.glow = box:CreateTexture (nil, "BACKGROUND")
   box.glow:SetPoint ("TOPLEFT", -2, 2)
   box.glow:SetPoint ("BOTTOMRIGHT", 2, -2)
-  box.glow:SetColorTexture (1, 1, 1, 0.3)
+  
+  box.glow:SetColorTexture (addonTable.FONTS.grey:GetRGB())
   box.glow:Hide ()
 
   box:SetScript ("OnEnter", function (b) b.glow:Show() end)
@@ -468,11 +491,7 @@ function GUI:CreateTable (rows, cols, firstRow, firstColumn, gridColor, parent)
       end
       self.rowHeight[n] = h
       if n == 0 and self.hlines then
-        if h == 0 then
-          self.hlines[-1]:Hide ()
-        else
-          self.hlines[-1]:Show ()
-        end
+        self.hlines[-1]:SetShown(h ~= 0)
       end
     else
       for i = 1, self.rows do
@@ -488,11 +507,7 @@ function GUI:CreateTable (rows, cols, firstRow, firstColumn, gridColor, parent)
       end
       self.colWidth[n] = w
       if n == 0 and self.vlines then
-        if w == 0 then
-          self.vlines[-1]:Hide ()
-        else
-          self.vlines[-1]:Show ()
-        end
+        self.vlines[-1]:SetShown(w ~= 0)
       end
     else
       for i = 1, self.cols do
@@ -737,7 +752,7 @@ function GUI:CreateTable (rows, cols, firstRow, firstColumn, gridColor, parent)
   t.textTagPool = {}
   t.SetCellText = function (self, i, j, text, align, color, font)
     align = align or "CENTER"
-    color = color or {1, 1, 1}
+    color = color or {addonTable.FONTS.white:GetRGB()}
     font = font or "GameFontNormalSmall"
 
     if self.cells[i][j] and not self.cells[i][j].istag then
@@ -764,7 +779,7 @@ function GUI:CreateTable (rows, cols, firstRow, firstColumn, gridColor, parent)
       end
     end
     self.cells[i][j].istag = true
-    self.cells[i][j]:SetTextColor (unpack(color))
+    self.cells[i][j]:SetTextColor(unpack(color))
     self.cells[i][j]:SetText (text)
     self.cells[i][j].align = align
     self:AlignCell (i, j)
@@ -778,42 +793,31 @@ function GUI.CreateStaticPopup(name, text, options)
     text = text,
     button1 = ACCEPT,
     button2 = CANCEL,
-    hasEditBox = true,
-    editBoxWidth = 350,
-    OnAccept = function (self)
-      options.func(self.editBox:GetText ())
-    end,
-    EditBoxOnEnterPressed = function (self)
-      local importStr = self:GetParent ().editBox:GetText ()
-      if importStr ~= "" then
-        options.func(importStr)
-        self:GetParent ():Hide ()
-      end
-    end,
-    EditBoxOnTextChanged = function (self, data)
-      if data ~= "" then
-        self:GetParent ().button1:Enable ()
-      else
-        self:GetParent ().button1:Disable ()
-      end
-    end,
-    EditBoxOnEscapePressed = function(self)
-      self:GetParent():Hide();
-    end,
-    OnShow = function (self)
-      LibDD:CloseDropDownMenus()
-      self.editBox:SetText ("")
-      self.button1:Disable ()
-      self.editBox:SetFocus ()
-    end,
-    OnHide = function (self)
-      ChatEdit_FocusActiveWindow()
-      self.editBox:SetText ("")
-    end,
+    hasEditBox = 1,
     timeout = 0,
-    whileDead = true,
-    hideOnEscape = true
+    whileDead = 1,
+    OnAccept = function(self)
+      options.func(self:GetEditBox():GetText())
+    end,
+    OnShow = function(self)
+      LibDD:CloseDropDownMenus()
+      self:GetButton1():Disable()
+      self:GetButton2():Enable()
+      self:GetEditBox():SetFocus()
+    end,
+    OnHide = function(self)
+      ChatEdit_FocusActiveWindow()
+      self:GetEditBox():SetText("")
+    end,
+    EditBoxOnEnterPressed = function(self)
+      if self:GetParent():GetButton1():IsEnabled() then
+        options.func(self:GetText())
+        self:GetParent():Hide()
+      end
+    end,
+    EditBoxOnTextChanged = function(self)
+      self:GetParent():GetButton1():SetEnabled(self:GetText() ~= "")
+    end,
+    EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
   }
 end
-
-addonTable.GUI = GUI
